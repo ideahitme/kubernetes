@@ -18,12 +18,13 @@ package aws
 
 import (
 	"fmt"
+	"sync"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/golang/glog"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/kubernetes/pkg/cloudprovider"
-	"sync"
 )
 
 // instanceCache is a cache of instances, that minimizes the number of AWS requests.
@@ -171,7 +172,7 @@ func (c *instanceCache) refreshAll(previous *instanceCacheSnapshot) (*instanceCa
 		newEc2Filter("instance-state-name", "running"),
 	}
 
-	filters = c.cloud.addFilters(filters)
+	filters = c.cloud.tagging.addFilters(filters)
 	request := &ec2.DescribeInstancesInput{
 		Filters: filters,
 	}

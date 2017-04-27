@@ -833,7 +833,7 @@ func newAWSCloud(config io.Reader, awsServices Services) (*Cloud, error) {
 			subnetID: cfg.Global.SubnetID,
 		}
 		awsCloud.vpcID = cfg.Global.VPC
-} else {
+	} else {
 		awsCloud.instanceCache = newInstanceCache(awsCloud)
 		awsCloud.volumeCache = newVolumeCache(ec2)
 		selfAWSInstance, err := awsCloud.buildSelfAWSInstance()
@@ -1751,7 +1751,6 @@ func (c *Cloud) DiskIsAttached(diskName KubernetesVolumeID, nodeName types.NodeN
 	return false, nil
 }
 
-<<<<<<< HEAD
 func (c *Cloud) DisksAreAttached(nodeDisks map[types.NodeName][]KubernetesVolumeID) (map[types.NodeName]map[KubernetesVolumeID]bool, error) {
 	attached := make(map[types.NodeName]map[KubernetesVolumeID]bool)
 
@@ -1763,39 +1762,26 @@ func (c *Cloud) DisksAreAttached(nodeDisks map[types.NodeName][]KubernetesVolume
 	for nodeName, diskNames := range nodeDisks {
 		for _, diskName := range diskNames {
 			setNodeDisk(attached, diskName, nodeName, false)
-=======
-// DisksAreAttached checks if the disks are attached to the particular node.
-//
-// Instance cache behaviour:
-// * Triggers a full cache refresh of listing all instances every 15 seconds
-func (c *Cloud) DisksAreAttached(diskNames []KubernetesVolumeID, nodeName types.NodeName) (map[KubernetesVolumeID]bool, error) {
-	idToDiskName := make(map[awsVolumeID]KubernetesVolumeID)
-	attached := make(map[KubernetesVolumeID]bool)
-	for _, diskName := range diskNames {
-		volumeID, err := diskName.mapToAWSVolumeID()
-		if err != nil {
-			return nil, fmt.Errorf("error mapping volume spec %q to aws id: %v", diskName, err)
->>>>>>> justin/cache_volume_focused
+
 		}
 		dnsNameSlice = append(dnsNameSlice, mapNodeNameToPrivateDNSName(nodeName))
 	}
 
-<<<<<<< HEAD
-	awsInstances, err := c.getInstancesByNodeNames(dnsNameSlice)
-=======
-	// TODO: Move validity duration to method argument
-	cachePolicy := &CachePolicy{Name: "DisksAreAttached", Validity: time.Second * 15}
+	awsInstances := []*ec2.Instance{}
 
-	var info *ec2.Instance
-	instance, err := c.instanceCache.GetInstanceByNodeName(cachePolicy, nodeName)
-	if err == nil && instance != nil {
-		info, err = instance.DescribeInstance(NeverRefresh)
-	}
->>>>>>> justin/cache_volume_focused
-	if err != nil {
-		// When there is an error fetching instance information
-		// it is safer to return nil and let volume information not be touched.
-		return nil, err
+	cachePolicy := &CachePolicy{Name: "DisksAreAttached", Validity: time.Second * 15}
+	for _, dnsName := range dnsNameSlice {
+		var info *ec2.Instance
+		instance, err := c.instanceCache.GetInstanceByNodeName(cachePolicy, types.NodeName(dnsName))
+		if err == nil && instance != nil {
+			info, err = instance.DescribeInstance(NeverRefresh)
+		}
+		if err != nil {
+			// When there is an error fetching instance information
+			// it is safer to return nil and let volume information not be touched.
+			return nil, err
+		}
+		awsInstances = append(awsInstances, info)
 	}
 
 	if len(awsInstances) == 0 {
@@ -1820,7 +1806,6 @@ func (c *Cloud) DisksAreAttached(diskNames []KubernetesVolumeID, nodeName types.
 			continue
 		}
 
-<<<<<<< HEAD
 		idToDiskName := make(map[awsVolumeID]KubernetesVolumeID)
 		for _, diskName := range diskNames {
 			volumeID, err := diskName.mapToAWSVolumeID()
@@ -1837,22 +1822,6 @@ func (c *Cloud) DisksAreAttached(diskNames []KubernetesVolumeID, nodeName types.
 				// Disk is still attached to node
 				setNodeDisk(attached, diskName, nodeName, true)
 			}
-=======
-		return attached, err
-	}
-
-	if info == nil {
-		// should be unreachable
-		return nil, fmt.Errorf("unable to retrieve instance info")
-	}
-
-	for _, blockDevice := range info.BlockDeviceMappings {
-		volumeID := awsVolumeID(aws.StringValue(blockDevice.Ebs.VolumeId))
-		diskName, found := idToDiskName[volumeID]
-		if found {
-			// Disk is still attached to node
-			attached[diskName] = true
->>>>>>> justin/cache_volume_focused
 		}
 	}
 
